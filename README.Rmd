@@ -1,0 +1,234 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# visualjoin
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of visualjoin is to ...
+
+Sometimes joins feel awkward because you need to know what variables are in the constituent data frames in order to coordinate a good join.  But if you are in a pipeline already, then these dataframes aren't printed for you.  Below, we just get an error - oh no! (unless there is a natural join that can happen - common variables)
+
+```{r cars, error = T}
+library(tidyverse)
+
+unvotes::un_votes |>
+  left_join(y = rnaturalearth::countries110)
+```
+
+
+Vizjoin will, allow you to *not* have everything declared at once, but will show you helpful dataframe summaries as you define your join
+
+
+
+
+```{r, eval = F}
+unvotes::un_votes |>
+  viz_left_join()
+# returns x data frame variables (glimpse-like)
+
+
+unvotes::un_votes |>
+  viz_left_join(y = rnaturalearth::countries110)
+# returns x and y data frame variables (glimpse-like) if no natural join happens
+```
+
+
+
+
+---
+
+
+# first we want to have a function that is kind of like glimpse, only returns a tibble...
+
+
+```{r}
+data_to_df_summary <- function(data = unvotes::un_votes,
+  num_values = 4,
+  num_columns = ncol(data),
+  max_char = 10){
+  
+data |>
+  slice(1:num_values) |>
+  mutate(across(everything(), as.character)) |>
+  pivot_longer(col = 1:num_columns) |>
+  group_by(name) |>
+  summarise(values = paste(value, collapse = ", ")) |>
+  # mutate(values = str_extract(values))
+  mutate(row_number = row_number()) |>
+  select(row_number, everything())
+  
+}
+
+data_to_df_summary()
+```
+
+
+# Then, slightly modifying, we'll have it return different column names depending on if it is right or left side dataframe.
+
+```{r}
+x_data_to_df_summary <- function(data = unvotes::un_votes,
+                                 num_values = 4){
+  
+  data |> 
+    data_to_df_summary() |>
+    rename(x_vars = name,
+           x_values = values) 
+  
+  
+}
+
+x_data_to_df_summary()
+```
+
+
+```{r}
+y_data_to_df_summary <- function(
+    data = unvotes::un_votes,
+    num_values = 4){
+  
+  data |> 
+    data_to_df_summary() |>
+    rename(y_vars = name,
+           y_values = values) 
+  
+  
+}
+
+
+y_data_to_df_summary()
+
+rnaturalearth::countries110 |>
+  sf::st_drop_geometry() |>
+  y_data_to_df_summary()
+```
+
+
+```{r}
+
+viz_left_join <- function(x, y = NULL, by = NULL, natural_join = F, ...){
+  
+  if(is_null(y)){out <- x_data_to_df_summary(x)}
+  
+  if(is_null(by)&!is.null(y)&!natural_join){
+    
+    out <- full_join(x_data_to_df_summary(x),
+              y_data_to_df_summary(y)) |>
+      select(-row_number)
+   
+    message("add 'by' in this form:  `by = join_by(x_var_name == y_var_name)`")
+     
+  }
+  
+  if(!is_null(by)&!is.null(y)){
+  
+  out <- left_join(x, y, by, ...)
+    
+  }
+  
+  if(natural_join){
+    
+  out <- left_join(x, y, ...)
+    
+  }
+  
+  out
+  
+}
+```
+
+#  And now the traditional readme
+
+## You can look at your x data summary
+
+```{r}
+unvotes::un_votes %>% 
+  viz_left_join()
+```
+
+## ... and then along y data summary
+
+```{r}
+unvotes::un_votes %>% 
+  viz_left_join(y = gapminder::gapminder)
+```
+
+
+## and performing the join (not very interesting - need a better example!)
+
+```{r}
+unvotes::un_votes %>% 
+  viz_left_join(y = gapminder::gapminder,
+                by = join_by(country == country))
+```
+
+## And left_join() arguments are usable.
+
+```{r}
+unvotes::un_votes %>% 
+  viz_left_join(y = gapminder::gapminder,
+                by = join_by(country == country), 
+                relationship = "many-to-many")
+
+```
+
+
+# And here we do a bit smaller join...
+
+```{r}
+unvotes::un_votes %>% 
+  filter(rcid == 3) %>% 
+  viz_left_join(y = gapminder::gapminder %>% 
+                  filter(year == min(year)),
+                by = join_by(country == country))
+```
+
+# And we can specify that a natural join is allowed.
+
+```{r}
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T)
+
+```
+
+# And join sequences
+
+
+```{r}
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls)
+
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T)
+
+
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T) %>% 
+  mutate(year = year(date)) %>% 
+  viz_left_join(gapminder::gapminder)
+
+
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T) %>% 
+  mutate(year = year(date)) %>% 
+  viz_left_join(gapminder::gapminder, 
+                natural_join = T)
+
+
+```
+
