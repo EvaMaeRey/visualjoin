@@ -329,7 +329,7 @@ unvotes::un_votes |>
 #> # ℹ 3 more variables: para <int>, short <chr>, descr <chr>
 ```
 
-# And join sequences
+# An examples which a couple of joins (unfortunely just some natural joins, so not too exciting)
 
 ``` r
 unvotes::un_votes |>
@@ -430,3 +430,26 @@ unvotes::un_votes |>
 #> # ℹ 8 more variables: para <int>, short <chr>, descr <chr>, year <dbl>,
 #> #   continent <fct>, lifeExp <dbl>, pop <int>, gdpPercap <dbl>
 ```
+
+``` r
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T) %>% 
+  mutate(year = year(date)) %>% 
+  viz_left_join(gapminder::gapminder, 
+                natural_join = T) %>% 
+  filter(!is.na(continent)) %>% 
+  summarise(prop_yes = sum(vote == "yes")/n(), 
+            .by = c(year, country, continent)) %>% 
+  ggplot() + 
+  aes(y = prop_yes, x = year, color = continent) + 
+  geom_point() +
+  geom_line() + 
+  facet_wrap(facets = vars(continent, country))
+#> Joining with `by = join_by(rcid)`
+#> Joining with `by = join_by(country, year)`
+#> `geom_line()`: Each group consists of only one observation. ℹ Do you need to
+#> adjust the group aesthetic?
+```
+
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->

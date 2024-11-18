@@ -203,7 +203,7 @@ unvotes::un_votes |>
 
 ```
 
-# And join sequences
+# An examples which a couple of joins (unfortunely just some natural joins, so not too exciting)
 
 
 ```{r}
@@ -228,7 +228,25 @@ unvotes::un_votes |>
   mutate(year = year(date)) %>% 
   viz_left_join(gapminder::gapminder, 
                 natural_join = T)
+```
 
 
+
+
+```{r, fig.height=12}
+unvotes::un_votes |>
+  viz_left_join(unvotes::un_roll_calls,
+                natural_join = T) %>% 
+  mutate(year = year(date)) %>% 
+  viz_left_join(gapminder::gapminder, 
+                natural_join = T) %>% 
+  filter(!is.na(continent)) %>% 
+  summarise(prop_yes = sum(vote == "yes")/n(), 
+            .by = c(year, country, continent)) %>% 
+  ggplot() + 
+  aes(y = prop_yes, x = year, color = continent) + 
+  geom_point() +
+  geom_line() + 
+  facet_wrap(facets = vars(continent, country))
 ```
 
